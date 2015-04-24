@@ -1,0 +1,28 @@
+{
+  "name": "kine",
+  "version": "1.0.0",
+  "description": "Simple client for kinesis",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/index.js"
+  },
+  "keywords": [
+    "kinesis",
+    "aws"
+  ],
+  "author": "Mapbox",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1.24",
+    "dynalite": "^0.11.0",
+    "dyno": "^0.11.3",
+    "hat": "0.0.3",
+    "lodash": "^3.7.0",
+    "queue-async": "^1.0.7"
+  },
+  "devDependencies": {
+    "dynalite": "^0.11.0",
+    "kinesalite": "^1.4.1",
+    "tape": "^4.0.0"
+  }
+}
