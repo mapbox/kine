@@ -7,7 +7,6 @@ var _ = require('lodash');
 
 test('init', util.init);
 
-
 var kine = Kine({
   streamName:'fakestream3',
   accessKeyId: 'fake',
@@ -19,14 +18,14 @@ var kine = Kine({
 var kcl;
 
 test('createStream', function(t) {
-  kine.createStream({shardCount:4}, function(err, resp){
+  kine.createStream({shardCount:4}, function(err, resp) {
     t.error(err);
     console.log(JSON.stringify(resp));
     t.end();
   });
 });
 
-test('start kcl', function(t){
+test('start kcl', function(t) {
 
   var kclprocess = {
     init: function(done) {
@@ -51,13 +50,13 @@ test('start kcl', function(t){
     { data: 'hello', partitionKey: 'a' },
     function(err, resp) {
       t.error(err);
-      console.log(resp)
-  });
-
+      console.log(resp);
+    }
+  );
 
 });
 
-test('kcl - checkpointed', function(t){
+test('kcl - checkpointed', function(t) {
 
   // check if it got checkpointed in dynamo
 
@@ -77,7 +76,7 @@ test('kcl - checkpointed', function(t){
         t.equal(s.instance, kcl.config.instanceId, 'this instance leased');
       });
 
-      var checkpointed = _(shards).filter(function(s){ return !!s.checkpoint;}).value();
+      var checkpointed = _(shards).filter(function(s) { return !!s.checkpoint;}).value();
       t.equal(checkpointed.length, 1, 'one checkpointed');
       t.end();
     });
@@ -85,18 +84,18 @@ test('kcl - checkpointed', function(t){
   setTimeout(checkpointed, 7000);
 });
 
-test('stop kcl', function(t){
+test('stop kcl', function(t) {
   // stop the kcl, somehow
   kcl.stop();
   setTimeout(t.end, 6000);
 });
 
-test('add more records', function(t){
+test('add more records', function(t) {
   var q = queue();
-  for(var i=0; i< 3; i++){
-    q.defer(kine.putRecord, { data: 'hello'+i, partitionKey: 'a'+i });
+  for (var i = 0; i < 3; i++) {
+    q.defer(kine.putRecord, { data: 'hello' + i, partitionKey: 'a' + i });
   }
-  q.awaitAll(function(err, resp){
+  q.awaitAll(function(err, resp) {
     t.error(err);
     t.end();
   });
@@ -124,7 +123,7 @@ test('start 2nd kcl', function(t) {
 
 });
 
-test('stop kcl2', function(t){
+test('stop kcl2', function(t) {
   // stop the kcl, somehow
   kcl2.stop();
   setTimeout(t.end, 6000);
