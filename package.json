@@ -16,6 +16,7 @@
     "aws-sdk": "^2.1.24",
     "dyno": "^0.11.3",
     "hat": "0.0.3",
+    "kinesis-readable": "^0.2.0",
     "lodash": "^3.7.0",
     "queue-async": "^1.0.7"
   },
