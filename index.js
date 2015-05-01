@@ -1,5 +1,6 @@
 var AWS = require('aws-sdk');
 var Kcl = require('./lib/kcl');
+var _ = require('lodash');
 
 module.exports = function(config) {
 if(!config) config = {};
@@ -72,7 +73,7 @@ if(!config) config = {};
   };
 
   kine.kcl = function(mod, opts) {
-      kcl = Kcl(config, mod, opts, kine);
+      kcl = Kcl(_.extend(config,opts), mod, kinesis);
       return kcl;
   };
   return kine;
