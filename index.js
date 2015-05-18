@@ -3,7 +3,7 @@ var Kcl = require('./lib/kcl');
 var _ = require('lodash');
 
 module.exports = function(config) {
-if(!config) config = {};
+  if(!config) config = {};
 
   if(!config.streamName) throw new Error('streamName must be configured');
 
@@ -17,64 +17,7 @@ if(!config) config = {};
   if (config.endpoint && config.endpoint !== '') kinesisOpts.endpoint = new AWS.Endpoint(config.endpoint);
   var kinesis = new AWS.Kinesis(kinesisOpts);
 
-  var kine = {};
-  var kcl;
-
-  kine.createStream = function(opts, cb) {
-    if (!opts.shardCount) throw new Error('shardCount not set');
-    var params = {
-      ShardCount: opts.shardCount,
-      StreamName: config.streamName
-    };
-    kinesis.createStream(params, cb);
-  }
-
-  kine.describeStream = function(opts, cb) {
-      if(!cb) cb = opts;
-      // add paging.
-      var params = {
-        StreamName: config.streamName,
-        Limit: opts.limit || 100
-      };
-      kinesis.describeStream(params, cb);
-  };
-
-  kine.getShardIterator =  function(opts, cb) {
-      if (!opts.shardId) throw new Error('shardId not set');
-      var params = {
-        ShardId: opts.shardId,
-        ShardIteratorType: (opts.shardIteratorType ||  'LATEST').toUpperCase(),
-        StreamName: config.streamName
-      };
-      if(opts.startingSequenceNumber) params.StartingSequenceNumber = opts.startingSequenceNumber;
-
-      kinesis.getShardIterator(params, cb);
-  };
-
-  kine.getRecords = function(opts, cb) {
-    if (!opts.shardIterator) throw new Error('shardIterator not set');
-    var params = {
-      ShardIterator: opts.shardIterator,
-      Limit: opts.limit || 100
-    };
-    kinesis.getRecords(params, cb);
-  };
-
-  kine.putRecord = function(opts, cb) {
-    var params = {
-      Data: opts.data,
-      PartitionKey: opts.partitionKey,
-      StreamName: config.streamName
-    };
-    if (opts.explicitHashKey) params.ExplicitHashKey = opts.explicitHashKey;
-    if (opts.sequenceNumberForOrdering) params.SequenceNumberForOrdering = opts.sequenceNumberForOrdering;
-
-    kinesis.putRecord(params, cb)
-  };
-
-  kine.kcl = function(mod, opts) {
-      kcl = Kcl(_.extend(config,opts), mod, kinesis);
-      return kcl;
-  };
-  return kine;
+  var kcl = Kcl(config, kinesis);
+  kcl.kinesis = kinesis;
+  return kcl;
 };
