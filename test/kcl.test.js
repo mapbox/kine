@@ -63,7 +63,6 @@ test('start kcl', function(t){
 test('kcl - checkpointed', function(t){
 
   // check if it got checkpointed in dynamo
-
   var dyno = Dyno({
     endpoint: 'http://localhost:4567',
     accessKeyId: 'fake',
@@ -128,7 +127,6 @@ test('start 2nd kcl', function(t) {
       }
     })
   );
-
 });
 
 test('stop kcl2', function(t){
