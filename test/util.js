@@ -1,8 +1,6 @@
 var Dynalite = require('dynalite');
 var Kinesalite = require('kinesalite');
 
-var test = require('tape');
-
 
 var dynalite = Dynalite({createTableMs: 0});
 var kinesalite = Kinesalite({createStreamMs: 0, shardLimit:100});
@@ -29,4 +27,4 @@ module.exports.teardown = function(t) {
       t.end();
     });
   });
-}
+};

@@ -4,7 +4,10 @@
   "description": "Simple client for kinesis",
   "main": "index.js",
   "scripts": {
-    "test": "tape test/index.js"
+    "pretest": "eslint bin lib test index.js",
+    "test": "tape test/index.js",
+    "docs": "documentation index.js -f md > API.md",
+    "coverage": "nyc --reporter=html tape test/*.test.js && open coverage/index.html"
   },
   "keywords": [
     "kinesis",
@@ -21,6 +24,10 @@
     "queue-async": "^1.0.7"
   },
   "devDependencies": {
+    "coveralls": "^2.11.2",
+    "documentation": "^3.0.0",
+    "eslint": "^1.4.1",
+    "nyc": "^3.2.2",
     "dynalite": "^0.11.0",
     "kinesalite": "^1.4.1",
     "tape": "^4.0.0"
