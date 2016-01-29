@@ -13,7 +13,8 @@ var kinesisOptions = {
   accessKeyId: 'fake',
   secretAccessKey: 'fake',
   region: 'us-east-1',
-  endpoint: 'http://localhost:5568'
+  endpoint: 'http://localhost:5568',
+  table: 'kine-kcl-test'
 };
 
 var kinesis = new AWS.Kinesis(kinesisOptions);
