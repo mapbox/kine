@@ -13,7 +13,8 @@ var kinesisOptions = {
   accessKeyId: 'fake',
   secretAccessKey: 'fake',
   region: 'us-east-1',
-  endpoint: 'http://localhost:5568'
+  endpoint: 'http://localhost:5568',
+  table: 'kine-kcl-test'
 };
 
 var kinesis = new AWS.Kinesis(kinesisOptions);
@@ -21,7 +22,7 @@ var kinesis = new AWS.Kinesis(kinesisOptions);
 var kine;
 
 test('createStream', function(t) {
-  kinesis.createStream({ShardCount:4, StreamName: 'teststream'}, function(err, resp){
+  kinesis.createStream({ShardCount:4, StreamName: 'teststream'}, function(err){
     t.error(err);
     t.end();
   });
@@ -52,10 +53,10 @@ test('start kcl', function(t){
 
   kinesis.putRecord(
     { Data: 'hello', PartitionKey: 'a', StreamName: 'teststream' },
-    function(err, resp) {
+    function(err) {
       t.error(err);
-      console.log(resp)
-  });
+    }
+  );
 
 
 });
@@ -93,12 +94,12 @@ test('stop kcl', function(t){
   setTimeout(t.end, 6000);
 });
 
-test('add more records', function(t){
+test('add more records', function(t) {
   var q = queue();
   for(var i=0; i< 3; i++){
     q.defer(kinesis.putRecord.bind(kinesis), { Data: 'hello'+i, PartitionKey: 'a'+i, StreamName: 'teststream' });
   }
-  q.awaitAll(function(err, resp){
+  q.awaitAll(function(err) {
     t.error(err);
     t.end();
   });
