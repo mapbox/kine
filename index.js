@@ -18,6 +18,7 @@ var Kcl = require('./lib/kcl');
  * @param {function} options.init - function that is called when a new lease of a shard is started
  * @param {function} options.processRecords - function is that called when new records are fetches from the kinesis shard.
  * @param {string} [options.maxShards] - max number of shards to track per process. defaults to 10
+ * @param {string} [options.maxProcessTime] - max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)
  * @param {string} [options.endpoint] - the kinesis endpoint url
  * @param {string} [options.dynamoEndpoint] - the dynamodb endpoint url
  * @param {string} [options.sessionToken] - credentials for the client to utilize
@@ -43,6 +44,8 @@ module.exports = function(config) {
   if (!config.table) throw new Error('table must be configured');
   if (!config.init) throw new Error('an init function must be configured');
   if (!config.processRecords) throw new Error('a processRecords function must be configured');
+
+  config.maxProcessTime = config.maxProcessTime || 3e5;
 
   var kinesisOpts = {
     region: config.region,

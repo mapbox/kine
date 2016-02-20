@@ -16,6 +16,7 @@ for details.
     -   `options.table` **string** the dynamodb table to use for tracking shard leases.
     -   `options.init` **function** function that is called when a new lease of a shard is started
     -   `options.processRecords` **function** function is that called when new records are fetches from the kinesis shard.
+    -   `options.maxShards` **[string]** max number of shards to track per process. defaults to 10
     -   `options.streamName` **string** the name of the kinesis stream to consume
     -   `options.endpoint` **[string]** the kinesis endpoint url
     -   `options.dynamoEndpoint` **[string]** the dynamodb endpoint url
@@ -23,7 +24,7 @@ for details.
     -   `options.accessKeyId` **[string]** credentials for the client to utilize
     -   `options.secretAccessKey` **[string]** credentials for the client to utilize
     -   `options.sessionToken` **[string]** credentials for the client to utilize
-    -   `options.maxShards` **[string]** max number of shards to track per process. defaults to 10
+    -   `options.maxProcessTime` **[string]** max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)
 -   `config`  
 
 **Examples**
