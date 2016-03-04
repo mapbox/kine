@@ -25,6 +25,8 @@ var Kcl = require('./lib/kcl');
  * @param {string} [options.accessKeyId] - credentials for the client to utilize
  * @param {string} [options.secretAccessKey] - credentials for the client to utilize
  * @param {string} [options.sessionToken] - credentials for the client to utilize
+ * @param {string} [options.cloudwatchNamespace] - namespace to use for custom cloudwatch reporting of shard ages. required if `cloudwatchStackname` is set
+ * @param {string} [options.cloudwatchStackname] - stack name to use as a dimension on custom cloudwatch reporting of shard ages. required if `cloudwatchNamespace` is set
 
  * @returns {client} a kine client
  * @example
@@ -44,6 +46,9 @@ module.exports = function(config) {
   if (!config.table) throw new Error('table must be configured');
   if (!config.init) throw new Error('an init function must be configured');
   if (!config.processRecords) throw new Error('a processRecords function must be configured');
+  if ((config.cloudwatchNamespace && !config.cloudwatchStackname) ||
+    (!config.cloudwatchNamespace && config.cloudwatchStackname)) throw new Error('both cloudwatchNamespace and cloudwatchStackname must be configured');
+
 
   config.maxProcessTime = config.maxProcessTime || 3e5;
 
