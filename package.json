@@ -1,6 +1,6 @@
 {
   "name": "kine",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "Simple client for kinesis",
   "main": "index.js",
   "scripts": {
