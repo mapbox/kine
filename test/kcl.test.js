@@ -5,9 +5,10 @@ var Kine = require('../');
 var AWS = require('aws-sdk');
 var Dyno = require('dyno');
 var _ = require('lodash');
+var sinon = require('sinon');
+var events = require('events');
 
 test('init', util.init);
-
 
 var kinesisOptions = {
   accessKeyId: 'fake',
@@ -29,12 +30,40 @@ test('createStream', function(t) {
 });
 
 test('start kcl', function(t){
+  // mock cloudwatch
+  var send = sinon.spy(function() {
+    t.ok(this.options);
+    t.equal(this.options.Namespace, 'test');
+    t.equal(this.options.MetricData.length, 1);
+    t.equal(this.options.MetricData[0].MetricName, 'ShardIteratorAgeInMs');
+    t.ok(this.options.MetricData[0].Value);
+    t.equal(this.options.MetricData[0].Unit, 'Milliseconds');
+    t.equal(this.options.MetricData[0].Dimensions.length, 3);
+    t.equal(this.options.MetricData[0].Dimensions[0].Name, 'DeliveryStream');
+    t.ok(this.options.MetricData[0].Dimensions[0].Value);
+    t.equal(this.options.MetricData[0].Dimensions[1].Name, 'ShardId');
+    t.ok(this.options.MetricData[0].Dimensions[1].Value);
+    t.equal(this.options.MetricData[0].Dimensions[2].Name, 'Stack');
+    t.ok(this.options.MetricData[0].Dimensions[1].Value);
+  });
+
+  var cloudwatch = {
+    putMetricData: function(options) {
+      var e = new events.EventEmitter();
+      e.options = options;
+      e.send = send;
+      return e;
+    }
+  };
 
   kine = Kine(
     _.extend(kinesisOptions, {
       dynamoEndpoint: 'http://localhost:4567',
       shardIteratorType: 'TRIM_HORIZON',
       streamName: 'teststream',
+      cloudwatchNamespace: 'test',
+      cloudwatchStackname: 'test',
+      cloudwatch: cloudwatch,
       init: function(done) {
         console.log('init');
         done();
@@ -46,6 +75,8 @@ test('start kcl', function(t){
         t.equal(records[0].PartitionKey, 'a', 'has paritionKey');
         t.equal(records[0].Data.toString(), 'hello', 'has data');
         done(null, true);
+        sinon.assert.calledOnce(send);
+
         t.end();
       }
     })
@@ -57,8 +88,6 @@ test('start kcl', function(t){
       t.error(err);
     }
   );
-
-
 });
 
 test('kcl - checkpointed', function(t){
