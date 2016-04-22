@@ -142,6 +142,9 @@ test('start 2nd kcl', function(t) {
       shardIteratorType: 'TRIM_HORIZON',
       streamName: 'teststream',
       table: kine.config.table,
+      cloudwatchNamespace: null,
+      cloudwatchStackname: null,
+      cloudwatch: null,
       init: function(done) {
         console.log('init');
         done();
