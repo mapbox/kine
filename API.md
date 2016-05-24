@@ -17,8 +17,9 @@ for details.
     -   `options.init` **function** function that is called when a new lease of a shard is started
     -   `options.processRecords` **function** function is that called when new records are fetches from the kinesis shard.
     -   `options.maxShards` **[string]** max number of shards to track per process. defaults to 10
-    -   `options.maxProcessTime` **[string]** max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)
+    -   `options.limit` **[string]** limit used for requests to kinesis for the number of records.  This is a max, you might get few records on process recirds
     -   `options.streamName` **string** the name of the kinesis stream to consume
+    -   `options.endpoint` **[string]** the kinesis endpoint url
     -   `options.dynamoEndpoint` **[string]** the dynamodb endpoint url
     -   `options.sessionToken` **[string]** credentials for the client to utilize
     -   `options.accessKeyId` **[string]** credentials for the client to utilize
@@ -26,7 +27,7 @@ for details.
     -   `options.sessionToken` **[string]** credentials for the client to utilize
     -   `options.cloudwatchNamespace` **[string]** namespace to use for custom cloudwatch reporting of shard ages. required if `cloudwatchStackname` is set
     -   `options.cloudwatchStackname` **[string]** stack name to use as a dimension on custom cloudwatch reporting of shard ages. required if `cloudwatchNamespace` is set
-    -   `options.endpoint` **[string]** the kinesis endpoint url
+    -   `options.maxProcessTime` **[string]** max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)
 -   `config`  
 
 **Examples**
