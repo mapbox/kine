@@ -64,6 +64,7 @@ test('start kcl', function(t){
       cloudwatchNamespace: 'test',
       cloudwatchStackname: 'test',
       cloudwatch: cloudwatch,
+      _leaseTimeout: 5000,
       init: function(done) {
         console.log('init');
         done();
@@ -74,9 +75,8 @@ test('start kcl', function(t){
         t.equal(records.length, 1, 'got record');
         t.equal(records[0].PartitionKey, 'a', 'has paritionKey');
         t.equal(records[0].Data.toString(), 'hello', 'has data');
-        done(null, true);
         sinon.assert.calledOnce(send);
-
+        done(null, true);
         t.end();
       }
     })
@@ -144,6 +144,7 @@ test('start 2nd kcl', function(t) {
       table: kine.config.table,
       cloudwatchNamespace: null,
       cloudwatchStackname: null,
+      _leaseTimeout: 5000,
       cloudwatch: null,
       init: function(done) {
         console.log('init');
