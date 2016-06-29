@@ -14,11 +14,14 @@ Features:
 #### How to use
 
 
-```
+```js
+var Kine = require('kine');
+
 kine2 = Kine({
+  region: 'us-east-1',
   streamName: 'teststream',
   shardIteratorType: 'TRIM_HORIZON',
-  table: 'teststream-kine'
+  table: 'teststream-kine',
   init: function(done) {
     // do initial setup, context `this` will also be available in processRecords
     console.log(this.id) // `this.id` is the shardId
