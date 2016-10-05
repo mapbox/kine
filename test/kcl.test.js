@@ -107,6 +107,8 @@ test('kcl - checkpointed', function(t){
       shards.forEach(function(s) {
         t.equal(s.status, 'leased', 'leased');
         t.equal(s.instance, kine.config.instanceId, 'this instance leased');
+        t.ok(s.hashKeyStart);
+        t.ok(s.hashKeyEnd);
       });
 
       var checkpointed = _(shards).filter(function(s){ return !!s.checkpoint;}).value();
