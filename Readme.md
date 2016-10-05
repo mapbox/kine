@@ -17,7 +17,7 @@ Features:
 ```js
 var Kine = require('kine');
 
-kine2 = Kine({
+var kcl = Kine({
   region: 'us-east-1',
   streamName: 'teststream',
   shardIteratorType: 'TRIM_HORIZON',
@@ -40,4 +40,33 @@ kine2 = Kine({
 });
 
 
+```
+
+##### kcl.stop
+
+A kine instance can be halted using `stop`. This will cause any future events to bail out and
+remove internal timers
+
+```js
+var Kine = require('kine');
+
+var kcl = Kine(/* config */);
+
+kcl.stop();
+```
+
+##### kcl.instanceInfo
+
+An instance can be queried by record Partition Key. This allows applications to locate which
+shard and instance are responsible for particular records in the stream.
+
+```js
+var Kine = require('kine');
+
+var kcl = Kine(/* config */);
+
+kcl.instanceInfo('0230102', function (err, info) {
+  // info contains shardId, instance, hashKeyStart and hashKeyEnd
+  // for the shard that contains records with partition key '0230102'
+});
 ```
