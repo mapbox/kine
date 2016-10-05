@@ -107,6 +107,8 @@ test('kcl - checkpointed', function(t){
       shards.forEach(function(s) {
         t.equal(s.status, 'leased', 'leased');
         t.equal(s.instance, kine.config.instanceId, 'this instance leased');
+        t.ok(s.hashKeyStart);
+        t.ok(s.hashKeyEnd);
       });
 
       var checkpointed = _(shards).filter(function(s){ return !!s.checkpoint;}).value();
@@ -167,6 +169,17 @@ test('stop kcl2', function(t){
   // stop the kcl, somehow
   kine2.stop();
   setTimeout(t.end, 6000);
+});
+
+test('query instanceInfo', function (t) {
+  kine.instanceInfo('a', function (err, info) {
+    t.error(err, 'no error querying instance info');
+    t.equal(info.instance, kine.config.instanceId, 'finds the instance');
+    t.ok(info.hashKeyStart, 'info has hashKeyStart');
+    t.ok(info.hashKeyEnd, 'info has hashKeyEnd');
+    t.ok(info.shardId, 'info has shardId');
+    t.end();
+  });
 });
 
 test('teardown', util.teardown);
