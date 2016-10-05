@@ -171,4 +171,15 @@ test('stop kcl2', function(t){
   setTimeout(t.end, 6000);
 });
 
+test('query instanceInfo', function (t) {
+  kine.instanceInfo('a', function (err, info) {
+    t.error(err, 'no error querying instance info');
+    t.equal(info.instance, kine.config.instanceId, 'finds the instance');
+    t.ok(info.hashKeyStart, 'info has hashKeyStart');
+    t.ok(info.hashKeyEnd, 'info has hashKeyEnd');
+    t.ok(info.shardId, 'info has shardId');
+    t.end();
+  });
+});
+
 test('teardown', util.teardown);
