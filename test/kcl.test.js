@@ -102,8 +102,8 @@ test('kcl - checkpointed', function(t){
   });
 
   function checkpointed() {
-    dyno.query({type:{EQ:'shard'}}, function(err, shards) {
-
+    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
+      var shards = response.Items;
       shards.forEach(function(s) {
         t.equal(s.status, 'leased', 'leased');
         t.equal(s.instance, kine.config.instanceId, 'this instance leased');
