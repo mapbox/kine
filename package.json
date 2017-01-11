@@ -1,6 +1,6 @@
 {
   "name": "@mapbox/kine",
-  "version": "2.5.3",
+  "version": "2.5.4",
   "description": "Simple client for kinesis",
   "main": "index.js",
   "scripts": {
