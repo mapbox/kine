@@ -182,4 +182,63 @@ test('query instanceInfo', function (t) {
   });
 });
 
+var kine3;
+var getRecords;
+test('start 3rd kcl', function(t) {
+
+  t.plan(5);
+
+  kine3 = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'TRIM_HORIZON',
+      streamName: 'teststream',
+      table: kine.config.table,
+      cloudwatchNamespace: null,
+      cloudwatchStackname: null,
+      _leaseTimeout: 5000,
+      cloudwatch: null,
+      init: function(done) {
+        console.log('init');
+        done();
+      },
+      processRecords: function(records, done) {
+        t.equals(records.length, 1);
+        t.equals(records[0].SequenceNumber, 1);
+        done(null, true);
+        t.end();
+      }
+    })
+  );
+  var i = 0;
+  getRecords = kine3.kinesis.getRecords;
+  kine3.kinesis.getRecords = function(options, callback) {
+    if (i == 0) {
+      t.ok(true); // gets called
+      callback(null, {}); // empty response, retry
+    } else if (i == 1) {
+      t.ok(true); // gets called too
+      callback(null, {Records: []}); // invalid response (no shard iterator), retry
+    } else if (i == 2) {
+      t.ok(true); // gets called
+      callback(null, {Records: null, NextShardIterator: 'valid'}); // invalid response (no records), retry
+    } else { // one valid response
+      callback(null, {
+        NextShardIterator: 'valid',
+        Records: [
+          {SequenceNumber: 1}
+        ]
+      });
+    }
+    i++;
+  };
+});
+
+test('stop kcl3', function(t){
+  // stop the kcl, somehow
+  kine3.kinesis.getRecords = getRecords;
+  kine3.stop();
+  setTimeout(t.end, 6000);
+});
+
 test('teardown', util.teardown);
