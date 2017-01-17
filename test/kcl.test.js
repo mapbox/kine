@@ -22,6 +22,14 @@ var kinesis = new AWS.Kinesis(kinesisOptions);
 
 var kine;
 
+var dyno = Dyno({
+  endpoint: 'http://localhost:4567',
+  accessKeyId: 'fake',
+  secretAccessKey: 'fake',
+  region: 'us-east-1',
+  table: 'kine-kcl-test'
+});
+
 test('createStream', function(t) {
   kinesis.createStream({ShardCount:4, StreamName: 'teststream'}, function(err){
     t.error(err);
@@ -93,14 +101,6 @@ test('start kcl', function(t){
 test('kcl - checkpointed', function(t){
 
   // check if it got checkpointed in dynamo
-  var dyno = Dyno({
-    endpoint: 'http://localhost:4567',
-    accessKeyId: 'fake',
-    secretAccessKey: 'fake',
-    region: 'us-east-1',
-    table: kine.config.table
-  });
-
   function checkpointed() {
     dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
       var shards = response.Items;
@@ -180,6 +180,91 @@ test('query instanceInfo', function (t) {
     t.ok(info.shardId, 'info has shardId');
     t.end();
   });
+});
+
+var kine3;
+var getRecords;
+test('start 3rd kcl', function(t) {
+
+  t.plan(8);
+
+  kine3 = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'TRIM_HORIZON',
+      streamName: 'teststream',
+      table: kine.config.table,
+      cloudwatchNamespace: null,
+      cloudwatchStackname: null,
+      _leaseTimeout: 5000,
+      cloudwatch: null,
+      init: function(done) {
+        console.log('init');
+        done();
+      },
+      processRecords: function(records, done) {
+        t.equals(records.length, 1);
+        t.equals(records[0].SequenceNumber, 1);
+        done(null, true);
+        setTimeout(t.end, 10000);
+      }
+    })
+  );
+  var i = 0;
+  getRecords = kine3.kinesis.getRecords;
+  kine3.kinesis.getRecords = function(options, callback) {
+    // we mock successive responses, iterating on i in 0..5
+    if (i == 0) {
+      t.ok(true, 'gets called, return empty response (retry)');
+      callback(null, {});
+    } else if (i == 1) {
+      t.ok(true, 'gets called, return invalid response, no shard iterator (retry)');
+      callback(null, {Records: []});
+    } else if (i == 2) {
+      t.ok(true, 'gets called as well, respond with no records (retry)');
+      callback(null, {Records: null, NextShardIterator: 'valid'});
+    } else if (i == 3) {
+      t.ok(true, 'gets called, respond with an error (retry)');
+      var err = new Error('Failed parsing');
+      err.code = 'SyntaxError';
+      callback(err, null);
+    } else if (i == 4) {
+      t.ok(true, 'gets called, return valid response');
+      callback(null, {
+        NextShardIterator: 'valid',
+        Records: [
+          {SequenceNumber: 1}
+        ]
+      });
+    } else if (i == 5) {
+      t.ok(true, 'gets called, return null as next shard iterator (close shard)');
+      callback(null, {
+        NextShardIterator: null,
+        Records: []
+      });
+    }
+    i++;
+  };
+});
+
+test('stop kcl3', function(t){
+  // stop the kcl, somehow
+  kine3.kinesis.getRecords = getRecords;
+  kine3.stop();
+  setTimeout(t.end, 6000);
+});
+
+test('kcl - closed shard', function(t){
+
+  function closedShard() {
+    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
+      var shards = response.Items;
+      t.equal(shards.length, 4);
+      t.equal(shards[2].status, 'complete');
+      t.end();
+    });
+  }
+  setTimeout(closedShard, 1000);
 });
 
 test('teardown', util.teardown);
