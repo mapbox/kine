@@ -79,7 +79,7 @@ test('start kcl', function(t){
       },
       processRecords: function(records, done) {
         // check value of this.
-        console.log(records);
+        t.equal(this.hasOwnProperty('lastCheckpoint'), true, 'has lastCheckpoint property');
         t.equal(records.length, 1, 'got record');
         t.equal(records[0].PartitionKey, 'a', 'has paritionKey');
         t.equal(records[0].Data.toString(), 'hello', 'has data');
