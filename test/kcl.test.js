@@ -255,6 +255,36 @@ test('stop kcl3', function(t){
   setTimeout(t.end, 6000);
 });
 
+var kine4;
+test('start 4th kcl', function(t) {
+
+  kine4 = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'TRIM_HORIZON',
+      streamName: 'teststream',
+      table: kine.config.table,
+      cloudwatchNamespace: null,
+      cloudwatchStackname: null,
+      _leaseTimeout: 5000,
+      cloudwatch: null,
+      init: function(done) {
+        console.log('init');
+        done();
+      },
+      processRecords: function(records, done) {
+        done(null, true);
+        setTimeout(t.end, 10000);
+      }
+    })
+  );
+});
+
+test('stop kcl4', function(t){
+  kine4.stop();
+  setTimeout(t.end, 6000);
+});
+
 test('kcl - closed shard', function(t){
 
   function closedShard() {
