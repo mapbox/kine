@@ -255,6 +255,49 @@ test('stop kcl3', function(t){
   setTimeout(t.end, 6000);
 });
 
+var kineManualCheckpoint;
+test('start 4th kcl', function(t) {
+  kineManualCheckpoint = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'TRIM_HORIZON',
+      streamName: 'teststream',
+      table: kine.config.table,
+      _leaseTimeout: 10000,
+      cloudwatch: null,
+      init: function(done) {
+        console.log('init manual checkpoint');
+        done();
+      },
+      processRecords: function(records, done) {
+        done(null, true);
+        this.checkpointFunc('012345', function(){
+          t.end();
+        });
+      }
+    })
+  );
+  kinesis.putRecord({ Data: 'hello', PartitionKey: 'a', StreamName: 'teststream' },
+    function(err) {
+      t.error(err);
+    });
+});
+
+test('kcl - has manually checkpointed', function(t){
+  function cp() {
+    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
+      t.equal(response.Items[0].checkpoint, '012345', 'sequenceNumber matches what we checkpointed manually');
+      t.end();
+    });
+  }
+  setTimeout(cp, 5000);
+});
+
+test('stop kcl', function(t){
+  kineManualCheckpoint.stop();
+  setTimeout(t.end, 6000);
+});
+
 test('kcl - closed shard', function(t){
 
   function closedShard() {
