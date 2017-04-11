@@ -1,4 +1,4 @@
-var test = require('tape');
+var test = require('tape-catch');
 var util = require('./util');
 var queue = require('queue-async');
 var Kine = require('../');
@@ -255,6 +255,50 @@ test('stop kcl3', function(t){
   setTimeout(t.end, 6000);
 });
 
+var debugFunctionKcl;
+var valueA = 0;
+test('start debug function kcl', function (t) {
+  t.ok('ok');
+
+  function testDebugFunction() {
+    console.log('We\'re running the debug function');
+    valueA = 1;
+  }
+
+  debugFunctionKcl = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'TRIM_HORIZON',
+      streamName: 'teststream',
+      table: kine.config.table,
+      maxProcessTime: 1, // add to trip on this condition
+      debugFunction: testDebugFunction,
+      _leaseTimeout: 15000,
+      cloudwatch: null,
+      init: function (done) {
+        console.log('init debug function');
+        done();
+      },
+      processRecords: function (records, done) {
+        setTimeout(function () {
+          done(null, true);
+        }, 5000);
+      }
+    })
+  );
+  kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {});
+});
+
+test('debug function was run successfully', function(t){
+  t.equal(valueA, 1, 'valueA was modified');
+  t.end();
+});
+
+test('stop debugFunction kcl', function(t){
+  debugFunctionKcl.stop();
+  setTimeout(t.end, 6000);
+});
+
 var kineManualCheckpoint;
 test('start 4th kcl', function(t) {
   kineManualCheckpoint = Kine(
@@ -262,6 +306,7 @@ test('start 4th kcl', function(t) {
       dynamoEndpoint: 'http://localhost:4567',
       shardIteratorType: 'TRIM_HORIZON',
       streamName: 'teststream',
+      maxProcessTime: 300000,
       table: kine.config.table,
       _leaseTimeout: 10000,
       cloudwatch: null,
