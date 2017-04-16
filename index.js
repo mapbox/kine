@@ -18,7 +18,7 @@ var Kcl = require('./lib/kcl');
  * @param {function} options.init - function that is called when a new lease of a shard is started
  * @param {function} options.processRecords - function is that called when new records are fetches from the kinesis shard.
  * @param {string} [options.maxShards] - max number of shards to track per process. defaults to 10
- * @param {string} [options.limit] - limit used for requests to kinesis for the number of records.  This is a max, you might get few records on process recirds
+ * @param {string} [options.limit] - limit used for requests to kinesis for the number of records.  This is a max, you might get few records on process records
  * @param {string} [options.maxProcessTime] - max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)
  * @param {string} [options.endpoint] - the kinesis endpoint url
  * @param {string} [options.dynamoEndpoint] - the dynamodb endpoint url
@@ -28,6 +28,7 @@ var Kcl = require('./lib/kcl');
  * @param {string} [options.sessionToken] - credentials for the client to utilize
  * @param {string} [options.cloudwatchNamespace] - namespace to use for custom cloudwatch reporting of shard ages. required if `cloudwatchStackname` is set
  * @param {string} [options.cloudwatchStackname] - stack name to use as a dimension on custom cloudwatch reporting of shard ages. required if `cloudwatchNamespace` is set
+ * @param {boolean} [options.verbose] - verbose output
 
  * @returns {client} a kine client
  * @example
