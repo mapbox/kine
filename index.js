@@ -58,7 +58,11 @@ module.exports = function(config) {
     accessKeyId: config.accessKeyId,
     secretAccessKey: config.secretAccessKey,
     sessionToken: config.sessionToken,
-    maxRetries: 10
+    maxRetries: 10,
+    httpOptions: {
+      connectTimeout: 15000,
+      timeout: 10000
+    }
   };
 
   if (config.endpoint && config.endpoint !== '') kinesisOpts.endpoint = new AWS.Endpoint(config.endpoint);
