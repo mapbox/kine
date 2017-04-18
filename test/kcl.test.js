@@ -261,7 +261,7 @@ test('start getRecords errors kcl', function (t) {
                 }
                 if (i === 2) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
-                  t.equal(resultError3._idleTimeout, 1000, 'ServiceUnavailable is 1 second wait for retry');
+                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
                 }
                 i++;
               }
