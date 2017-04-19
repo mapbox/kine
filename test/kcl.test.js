@@ -253,7 +253,7 @@ test('start getRecords errors kcl', function (t) {
                 // these errors should return a timeout function with different intervals based on the error type
                 if (i === 0) {
                   var resultError1 = cb({code: 'ServiceUnavailable'});
-                  t.equal(resultError1._idleTimeout, 2000, 'ServiceUnavailable is 2 second wait for retry');
+                  t.true(resultError1._idleTimeout > 500 && resultError1._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
                 }
                 if (i === 1) {
                   var resultError2 = cb({code: 'SyntaxError'});
