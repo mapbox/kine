@@ -1,4 +1,4 @@
-#Kine
+# Kine
 
 Kine makes reading from an aws kinesis stream easy.
 

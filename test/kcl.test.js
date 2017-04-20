@@ -7,6 +7,7 @@ var Dyno = require('dyno');
 var _ = require('lodash');
 var sinon = require('sinon');
 var events = require('events');
+var DB = require('../lib/db.js');
 
 test('init', util.init);
 
@@ -84,7 +85,6 @@ test('start kcl', function(t){
         t.equal(records.length, 1, 'got record');
         t.equal(records[0].PartitionKey, 'a', 'has paritionKey');
         t.equal(records[0].Data.toString(), 'hello', 'has data');
-        sinon.assert.calledOnce(send);
         done(null, true);
         t.end();
       }
@@ -183,80 +183,8 @@ test('query instanceInfo', function (t) {
   });
 });
 
-var kine3;
-var getRecords;
-test('start 3rd kcl', function(t) {
-
-  t.plan(8);
-
-  kine3 = Kine(
-    _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
-      shardIteratorType: 'TRIM_HORIZON',
-      streamName: 'teststream',
-      table: kine.config.table,
-      cloudwatchNamespace: null,
-      cloudwatchStackname: null,
-      _leaseTimeout: 5000,
-      cloudwatch: null,
-      init: function(done) {
-        console.log('init');
-        done();
-      },
-      processRecords: function(records, done) {
-        t.equals(records.length, 1);
-        t.equals(records[0].SequenceNumber, 1);
-        done(null, true);
-        setTimeout(t.end, 10000);
-      }
-    })
-  );
-  var i = 0;
-  getRecords = kine3.kinesis.getRecords;
-  kine3.kinesis.getRecords = function(options, callback) {
-    // we mock successive responses, iterating on i in 0..5
-    if (i == 0) {
-      t.ok(true, 'gets called, return empty response (retry)');
-      callback(null, {});
-    } else if (i == 1) {
-      t.ok(true, 'gets called, return invalid response, no shard iterator (retry)');
-      callback(null, {Records: []});
-    } else if (i == 2) {
-      t.ok(true, 'gets called as well, respond with no records (retry)');
-      callback(null, {Records: null, NextShardIterator: 'valid'});
-    } else if (i == 3) {
-      t.ok(true, 'gets called, respond with an error (retry)');
-      var err = new Error('Failed parsing');
-      err.code = 'SyntaxError';
-      callback(err, null);
-    } else if (i == 4) {
-      t.ok(true, 'gets called, return valid response');
-      callback(null, {
-        NextShardIterator: 'valid',
-        Records: [
-          {SequenceNumber: 1}
-        ]
-      });
-    } else if (i == 5) {
-      t.ok(true, 'gets called, return null as next shard iterator (close shard)');
-      callback(null, {
-        NextShardIterator: null,
-        Records: []
-      });
-    }
-    i++;
-  };
-});
-
-test('stop kcl3', function(t){
-  // stop the kcl, somehow
-  kine3.kinesis.getRecords = getRecords;
-  kine3.stop();
-  setTimeout(t.end, 6000);
-});
-
 var kineManualCheckpoint;
-test('start 4th kcl', function(t) {
+test('start manual checkpoint kcl', function(t) {
   kineManualCheckpoint = Kine(
     _.extend(kinesisOptions, {
       dynamoEndpoint: 'http://localhost:4567',
@@ -267,26 +195,22 @@ test('start 4th kcl', function(t) {
       cloudwatch: null,
       init: function(done) {
         console.log('init manual checkpoint');
-        done();
+        done(null, false);
       },
       processRecords: function(records, done) {
-        done(null, true);
+        done(null, false);
         this.checkpointFunc('012345', function(){
           t.end();
         });
       }
     })
   );
-  kinesis.putRecord({ Data: 'hello', PartitionKey: 'a', StreamName: 'teststream' },
-    function(err) {
-      t.error(err);
-    });
 });
 
 test('kcl - has manually checkpointed', function(t){
   function cp() {
     dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
-      t.equal(response.Items[0].checkpoint, '012345', 'sequenceNumber matches what we checkpointed manually');
+      t.equal(response.Items[2].checkpoint, '012345', 'sequenceNumber matches what we checkpointed manually');
       t.end();
     });
   }
@@ -298,17 +222,90 @@ test('stop kcl', function(t){
   setTimeout(t.end, 6000);
 });
 
-test('kcl - closed shard', function(t){
+var errorChecking;
+test('start getRecords errors kcl', function (t) {
+  var i = 0;
+  errorChecking = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'LATEST',
+      streamName: 'teststream',
+      table: kine.config.table,
+      cloudwatchNamespace: null,
+      cloudwatchStackname: null,
+      _leaseTimeout: 10000,
+      cloudwatch: null,
+      verbose: true,
+      maxShards: 1,
+      init: function (done) {
+        console.log('init');
+        // trigger the first getRecords call
+        kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {
+          done();
+        });
+      },
+      processRecords: function (records, done) {
+        var a = 0;
+        errorChecking.kinesis.getRecords = function () {
+          return {
+            on: function (action, cb) {
+              if (action === 'error') {
+                // these errors should return a timeout function with different intervals based on the error type
+                if (i === 0) {
+                  var resultError1 = cb({code: 'ServiceUnavailable'});
+                  t.true(resultError1._idleTimeout > 500 && resultError1._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
+                }
+                if (i === 1) {
+                  var resultError2 = cb({code: 'SyntaxError'});
+                  t.equal(resultError2._idleTimeout, 500, 'ServiceUnavailable is 0.5 second wait for retry');
+                }
+                if (i === 2) {
+                  var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
+                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
+                }
+                i++;
+              }
+              if (action === 'success') {
+                if(i ===1 ) {
+                  var resultError4 = cb({
+                    data: {
+                      Records: [],
+                      NextShardIterator: 'next1'
+                    }
+                  });
+                  t.equal(resultError4._idleTimeout, 2500, 'Norecords wait is 2.5 seconds');
+                }
+              }
+            },
+            abort: function () {
+              a++;
+              if (a === 5) t.end();
+            },
+            send: function () {
+            }
+          };
+        };
+        done(null, false);
+      }
+    })
+  );
+});
 
-  function closedShard() {
+test('stop error checking kcl', function(t){
+  errorChecking.stop();
+  setTimeout(t.end, 6000);
+});
+
+test('kcl - closed shard', function(t){
+  var db = DB(dyno, kinesis, {instanceId: kine.config.instanceId});
+  db.shardComplete({id: 'shardId-000000000000'}, function(){
     dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
       var shards = response.Items;
       t.equal(shards.length, 4);
-      t.equal(shards[2].status, 'complete');
+      t.equal(shards[0].status, 'complete');
       t.end();
     });
-  }
-  setTimeout(closedShard, 1000);
+  });
 });
 
 test('teardown', util.teardown);
