@@ -21,10 +21,10 @@ for details.
     -   `options.streamName` **string** the name of the kinesis stream to consume
     -   `options.endpoint` **[string]** the kinesis endpoint url
     -   `options.dynamoEndpoint` **[string]** the dynamodb endpoint url
-    -   `options.sessionToken` **[string]** credentials for the client to utilize
     -   `options.accessKeyId` **[string]** credentials for the client to utilize
     -   `options.secretAccessKey` **[string]** credentials for the client to utilize
     -   `options.sessionToken` **[string]** credentials for the client to utilize
+    -   `options.credentials` **[AWS.Credentials]** [AWS.Credentials](https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Credentials.html) object for the client to utilize
     -   `options.cloudwatchNamespace` **[string]** namespace to use for custom cloudwatch reporting of shard ages. required if `cloudwatchStackname` is set
     -   `options.cloudwatchStackname` **[string]** stack name to use as a dimension on custom cloudwatch reporting of shard ages. required if `cloudwatchNamespace` is set
     -   `options.maxProcessTime` **[string]** max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)

@@ -22,10 +22,10 @@ var Kcl = require('./lib/kcl');
  * @param {string} [options.maxProcessTime] - max number of millseconds between getting records before considering a process a zombie . defaults to 300000 (5mins)
  * @param {string} [options.endpoint] - the kinesis endpoint url
  * @param {string} [options.dynamoEndpoint] - the dynamodb endpoint url
- * @param {string} [options.sessionToken] - credentials for the client to utilize
  * @param {string} [options.accessKeyId] - credentials for the client to utilize
  * @param {string} [options.secretAccessKey] - credentials for the client to utilize
  * @param {string} [options.sessionToken] - credentials for the client to utilize
+ * @param {AWS.Credentials} [options.sessionToken] - an AWS.Credentials object for the client to utilize
  * @param {string} [options.cloudwatchNamespace] - namespace to use for custom cloudwatch reporting of shard ages. required if `cloudwatchStackname` is set
  * @param {string} [options.cloudwatchStackname] - stack name to use as a dimension on custom cloudwatch reporting of shard ages. required if `cloudwatchNamespace` is set
  * @param {boolean} [options.verbose] - verbose output
@@ -58,6 +58,7 @@ module.exports = function(config) {
     accessKeyId: config.accessKeyId,
     secretAccessKey: config.secretAccessKey,
     sessionToken: config.sessionToken,
+    credentials: config.credentials,
     maxRetries: 10,
     httpOptions: {
       connectTimeout: 15000,
