@@ -13,6 +13,7 @@ Features:
 
 #### How to use
 
+See [API.md](API.md) for complete reference.
 
 ```js
 var Kine = require('kine');
