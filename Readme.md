@@ -1,4 +1,4 @@
-# Kine
+# Kine [![Build Status](https://travis-ci.org/mapbox/kine.svg?branch=master)](https://travis-ci.org/mapbox/kine)
 
 Kine makes reading from an aws kinesis stream easy.
 
