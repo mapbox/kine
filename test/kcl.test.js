@@ -1,9 +1,9 @@
 var test = require('tape');
 var util = require('./util');
-var queue = require('queue-async');
+var queue = require('d3-queue').queue;
 var Kine = require('../');
 var AWS = require('aws-sdk');
-var Dyno = require('dyno');
+var Dyno = require('@mapbox/dyno');
 var _ = require('lodash');
 var sinon = require('sinon');
 var events = require('events');
@@ -237,7 +237,7 @@ test('start getRecords errors kcl', function (t) {
       cloudwatch: null,
       verbose: true,
       maxShards: 1,
-      minProcessTime: 5000,
+      minProcessTime: 7000,
       init: function (done) {
         console.log('init');
         // trigger the first getRecords call
@@ -254,20 +254,20 @@ test('start getRecords errors kcl', function (t) {
                 // these errors should return a timeout function with different intervals based on the error type
                 if (i === 0) {
                   var resultError1 = cb({code: 'ServiceUnavailable'});
-                  t.true(resultError1._idleTimeout > 500 && resultError1._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
+                  t.true(resultError1._idleTimeout > 500 && resultError1._idleTimeout <= 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
                 }
                 if (i === 1) {
                   var resultError2 = cb({code: 'SyntaxError'});
-                  t.equal(resultError2._idleTimeout, 500, 'ServiceUnavailable is 0.5 second wait for retry');
+                  t.equal(resultError2._idleTimeout, 500, 'SyntaxError is 0.5 second wait for retry');
                 }
                 if (i === 2) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
-                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
+                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout <= 6000, 'ProvisionedThroughputExceededException is between 500ms and 6000ms for retry');
                 }
                 i++;
               }
               if (action === 'success') {
-                if(i ===1 ) {
+                if (i === 1) {
                   var resultError4 = cb({
                     data: {
                       Records: [],
@@ -300,7 +300,7 @@ test('stop error checking kcl', function(t){
 test('kcl - closed shard', function(t){
   var db = DB(dyno, kinesis, {instanceId: kine.config.instanceId});
   db.shardComplete({id: 'shardId-000000000000'}, function(){
-    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
+    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ', AttributeValueList: ['shard']}}}, function(err, response) {
       var shards = response.Items;
       t.equal(shards.length, 4);
       t.equal(shards[0].status, 'complete');
