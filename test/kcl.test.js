@@ -237,6 +237,7 @@ test('start getRecords errors kcl', function (t) {
       cloudwatch: null,
       verbose: true,
       maxShards: 1,
+      minProcessTime: 5000,
       init: function (done) {
         console.log('init');
         // trigger the first getRecords call
