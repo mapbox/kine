@@ -316,9 +316,10 @@ test('start shard closing test', function (t) {
           done();
         });
       },
-      onShardClosed: function(){
+      onShardClosed: function(done){
         t.equal(this.id, 'shardId-000000000000', 'shard closed is the first one');
-        t.equal(this.status, 'complete', 'status is closed');
+        t.equal(this.status, 'leased', 'status is not closed yet');
+        done();
       },
       processRecords: function (records, done) {
         closeShard.kinesis.getRecords = function () {
