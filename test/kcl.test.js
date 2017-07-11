@@ -125,7 +125,7 @@ test('stop kcl', function(t){
   kine.stop();
   setTimeout(t.end, 6000);
 });
-/*
+
 test('add more records', function(t) {
   var q = queue();
   for(var i=0; i< 3; i++){
@@ -221,7 +221,7 @@ test('stop kcl', function(t){
   kineManualCheckpoint.stop();
   setTimeout(t.end, 6000);
 });
-*/
+
 var errorChecking;
 test('start getRecords errors kcl', function (t) {
   var i = 0;
@@ -262,6 +262,7 @@ test('start getRecords errors kcl', function (t) {
                 }
                 if (i === 2) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
+                  console.log(resultError3._idleTimeout);
                   t.true(resultError3._idleTimeout >= 3500 && resultError3._idleTimeout <= 9000, 'ProvisionedThroughputExceededException is between 3500ms and 9000ms for retry 3');
                 }
                 i++;
@@ -274,7 +275,7 @@ test('start getRecords errors kcl', function (t) {
                       NextShardIterator: 'next1'
                     }
                   });
-                  t.true(resultError4._idleTimeout >= 6990 && resultError4._idleTimeout <= 7000, 'Norecords wait is almost equal to minProcessTime');
+                  t.true(resultError4._idleTimeout, 2500, 'Norecords wait is 2500ms');
                 }
               }
             },
