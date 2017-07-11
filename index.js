@@ -53,7 +53,7 @@ module.exports = function(config) {
     (!config.cloudwatchNamespace && config.cloudwatchStackname)) throw new Error('both cloudwatchNamespace and cloudwatchStackname must be configured');
 
   config.maxProcessTime = config.maxProcessTime || 3e5;
-  config.minProcessTime = config.minProcessTime || 0;
+  config.minProcessTime = config.minProcessTime || 1e3;
 
   var kinesisOpts = {
     region: config.region,
