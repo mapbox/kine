@@ -222,10 +222,11 @@ test('stop kcl', function(t){
   setTimeout(t.end, 6000);
 });
 
-var errorChecking;
-test('start getRecords errors kcl', function (t) {
+var timerChecking;
+test('start getRecords kcl', function (t) {
   var i = 0;
-  errorChecking = Kine(
+  var startTime;
+  timerChecking = Kine(
     _.extend(kinesisOptions, {
       dynamoEndpoint: 'http://localhost:4567',
       shardIteratorType: 'LATEST',
@@ -242,12 +243,18 @@ test('start getRecords errors kcl', function (t) {
         console.log('init');
         // trigger the first getRecords call
         kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {
+          startTime = +new Date();
           done();
         });
       },
       processRecords: function (records, done) {
         var a = 0;
-        errorChecking.kinesis.getRecords = function () {
+        timerChecking.kinesis.getRecords = function () {
+          if (i === 0) {
+            var diff = +new Date() - startTime;
+            t.true(diff > 7000, 'Time between consecutive getRecords call > minProcessTime');
+          }
+
           return {
             on: function (action, cb) {
               if (action === 'error') {
@@ -263,7 +270,7 @@ test('start getRecords errors kcl', function (t) {
                 if (i === 2) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
                   console.log(resultError3._idleTimeout);
-                  t.true(resultError3._idleTimeout >= 3500 && resultError3._idleTimeout <= 9000, 'ProvisionedThroughputExceededException is between 3500ms and 9000ms for retry 3');
+                  t.true(resultError3._idleTimeout >= 500 && resultError3._idleTimeout <= 9000, 'ProvisionedThroughputExceededException is between 3500ms and 9000ms for retry 3');
                 }
                 i++;
               }
@@ -294,7 +301,7 @@ test('start getRecords errors kcl', function (t) {
 });
 
 test('stop error checking kcl', function(t){
-  errorChecking.stop();
+  timerChecking.stop();
   setTimeout(t.end, 6000);
 });
 
