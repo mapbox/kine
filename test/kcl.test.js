@@ -292,7 +292,7 @@ test('start getRecords errors kcl', function (t) {
 
 test('stop error checking kcl', function (t) {
   errorChecking.stop();
-  setTimeout(t.end, 6000);
+  setTimeout(t.end, 10000);
 });
 
 var closeShard;
@@ -316,6 +316,11 @@ test('start shard closing test', function (t) {
           done();
         });
       },
+      onShardClosed: function(done){
+        t.equal(this.id, 'shardId-000000000000', 'shard closed is the first one');
+        t.equal(this.status, 'leased', 'status is not closed yet');
+        done();
+      },
       processRecords: function (records, done) {
         closeShard.kinesis.getRecords = function () {
           return {
@@ -337,8 +342,8 @@ test('start shard closing test', function (t) {
                     }
                   }, function (err, response) {
                     var shards = response.Items;
-                    t.equal(shards.length, 4);
-                    t.equal(shards[0].status, 'complete');
+                    t.equal(shards.length, 4, 'shard count is the same');
+                    t.equal(shards[0].status, 'complete', 'shard marked as complete');
                     t.end();
                   });
                 }, 1000);
