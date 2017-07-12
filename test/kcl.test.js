@@ -7,7 +7,6 @@ var Dyno = require('dyno');
 var _ = require('lodash');
 var sinon = require('sinon');
 var events = require('events');
-var DB = require('../lib/db.js');
 
 test('init', util.init);
 
@@ -261,7 +260,7 @@ test('start getRecords errors kcl', function (t) {
                 }
                 if (i === 2) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
-                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
+                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout < 7000, 'ServiceUnavailable is between 500ms and 7000ms for retry (2nd attempt)');
                 }
                 i++;
               }
@@ -291,21 +290,80 @@ test('start getRecords errors kcl', function (t) {
   );
 });
 
-test('stop error checking kcl', function(t){
+test('stop error checking kcl', function (t) {
   errorChecking.stop();
-  setTimeout(t.end, 6000);
+  setTimeout(t.end, 10000);
 });
 
-test('kcl - closed shard', function(t){
-  var db = DB(dyno, kinesis, {instanceId: kine.config.instanceId});
-  db.shardComplete({id: 'shardId-000000000000'}, function(){
-    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
-      var shards = response.Items;
-      t.equal(shards.length, 4);
-      t.equal(shards[0].status, 'complete');
-      t.end();
-    });
-  });
+var closeShard;
+test('start shard closing test', function (t) {
+  closeShard = Kine(
+    _.extend(kinesisOptions, {
+      dynamoEndpoint: 'http://localhost:4567',
+      shardIteratorType: 'LATEST',
+      streamName: 'teststream',
+      table: kine.config.table,
+      cloudwatchNamespace: null,
+      cloudwatchStackname: null,
+      _leaseTimeout: 10000,
+      cloudwatch: null,
+      verbose: true,
+      maxShards: 1,
+      init: function (done) {
+        console.log('init');
+        // trigger the first getRecords call
+        kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {
+          done();
+        });
+      },
+      onShardClosed: function(done){
+        t.equal(this.id, 'shardId-000000000000', 'shard closed is the first one');
+        t.equal(this.status, 'leased', 'status is not closed yet');
+        done();
+      },
+      processRecords: function (records, done) {
+        closeShard.kinesis.getRecords = function () {
+          return {
+            on: function (action, cb) {
+              if (action === 'success') {
+                // valid Records, but no NextShardIterator -> this should close the shard
+                cb({
+                  data: {
+                    Records: []
+                  }
+                });
+                setTimeout(function () {
+                  dyno.query({
+                    KeyConditions: {
+                      type: {
+                        ComparisonOperator: 'EQ',
+                        AttributeValueList: ['shard']
+                      }
+                    }
+                  }, function (err, response) {
+                    var shards = response.Items;
+                    t.equal(shards.length, 4, 'shard count is the same');
+                    t.equal(shards[0].status, 'complete', 'shard marked as complete');
+                    t.end();
+                  });
+                }, 1000);
+              }
+            },
+            abort: function () {
+            },
+            send: function () {
+            }
+          };
+        };
+        done(null, false);
+      }
+    })
+  );
+});
+
+test('stop closed shard kcl', function (t) {
+  closeShard.stop();
+  setTimeout(t.end, 6000);
 });
 
 test('teardown', util.teardown);
