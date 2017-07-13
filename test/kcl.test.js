@@ -295,6 +295,10 @@ test('stop error checking kcl', function (t) {
   setTimeout(t.end, 10000);
 });
 
+process.exit = function(code){
+  console.log('Exited with code', code);
+};
+
 var closeShard;
 test('start shard closing test', function (t) {
   closeShard = Kine(
