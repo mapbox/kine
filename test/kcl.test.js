@@ -148,6 +148,8 @@ test('start 2nd kcl', function(t) {
       cloudwatchStackname: null,
       _leaseTimeout: 5000,
       cloudwatch: null,
+      verbose: true,
+      minProcessTime: 5000,
       init: function(done) {
         console.log('init');
         done();
@@ -192,6 +194,7 @@ test('start manual checkpoint kcl', function(t) {
       table: kine.config.table,
       _leaseTimeout: 10000,
       cloudwatch: null,
+      verbose: false,
       init: function(done) {
         console.log('init manual checkpoint');
         done(null, false);
