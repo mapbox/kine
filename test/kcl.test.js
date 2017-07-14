@@ -1,9 +1,9 @@
 var test = require('tape');
 var util = require('./util');
-var queue = require('queue-async');
+var queue = require('d3-queue').queue;
 var Kine = require('../');
 var AWS = require('aws-sdk');
-var Dyno = require('dyno');
+var Dyno = require('@mapbox/dyno');
 var _ = require('lodash');
 var sinon = require('sinon');
 var events = require('events');
@@ -148,6 +148,8 @@ test('start 2nd kcl', function(t) {
       cloudwatchStackname: null,
       _leaseTimeout: 5000,
       cloudwatch: null,
+      verbose: true,
+      minProcessTime: 5000,
       init: function(done) {
         console.log('init');
         done();
@@ -192,6 +194,7 @@ test('start manual checkpoint kcl', function(t) {
       table: kine.config.table,
       _leaseTimeout: 10000,
       cloudwatch: null,
+      verbose: false,
       init: function(done) {
         console.log('init manual checkpoint');
         done(null, false);
@@ -221,10 +224,11 @@ test('stop kcl', function(t){
   setTimeout(t.end, 6000);
 });
 
-var errorChecking;
-test('start getRecords errors kcl', function (t) {
+var timerChecking;
+test('start getRecords kcl', function (t) {
   var i = 0;
-  errorChecking = Kine(
+  var startTime;
+  timerChecking = Kine(
     _.extend(kinesisOptions, {
       dynamoEndpoint: 'http://localhost:4567',
       shardIteratorType: 'LATEST',
@@ -236,43 +240,50 @@ test('start getRecords errors kcl', function (t) {
       cloudwatch: null,
       verbose: true,
       maxShards: 1,
+      minProcessTime: 7000,
       init: function (done) {
         console.log('init');
         // trigger the first getRecords call
         kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {
+          startTime = +new Date();
           done();
         });
       },
       processRecords: function (records, done) {
         var a = 0;
-        errorChecking.kinesis.getRecords = function () {
+        timerChecking.kinesis.getRecords = function () {
+          if (i === 0) {
+            var diff = +new Date() - startTime;
+            t.true(diff > 7000, 'Time between consecutive getRecords call > minProcessTime');
+          }
+
           return {
             on: function (action, cb) {
               if (action === 'error') {
                 // these errors should return a timeout function with different intervals based on the error type
                 if (i === 0) {
                   var resultError1 = cb({code: 'ServiceUnavailable'});
-                  t.true(resultError1._idleTimeout > 500 && resultError1._idleTimeout < 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry');
+                  t.true(resultError1._idleTimeout >= 500 && resultError1._idleTimeout <= 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry 1');
                 }
                 if (i === 1) {
                   var resultError2 = cb({code: 'SyntaxError'});
-                  t.equal(resultError2._idleTimeout, 500, 'ServiceUnavailable is 0.5 second wait for retry');
+                  t.equal(resultError2._idleTimeout, 500, 'SyntaxError is 0.5 second wait for retry');
                 }
                 if (i === 2) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
-                  t.true(resultError3._idleTimeout > 500 && resultError3._idleTimeout < 7000, 'ServiceUnavailable is between 500ms and 7000ms for retry (2nd attempt)');
+                  t.true(resultError3._idleTimeout >= 500 && resultError3._idleTimeout <= 9000, 'ProvisionedThroughputExceededException is between 3500ms and 9000ms for retry 3');
                 }
                 i++;
               }
               if (action === 'success') {
-                if(i ===1 ) {
+                if (i === 1) {
                   var resultError4 = cb({
                     data: {
                       Records: [],
                       NextShardIterator: 'next1'
                     }
                   });
-                  t.equal(resultError4._idleTimeout, 2500, 'Norecords wait is 2.5 seconds');
+                  t.true(resultError4._idleTimeout, 2500, 'Norecords wait is 2500ms');
                 }
               }
             },
@@ -291,7 +302,7 @@ test('start getRecords errors kcl', function (t) {
 });
 
 test('stop error checking kcl', function (t) {
-  errorChecking.stop();
+  timerChecking.stop();
   setTimeout(t.end, 10000);
 });
 
