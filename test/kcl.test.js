@@ -297,6 +297,11 @@ test('stop error checking kcl', function (t) {
 
 var closeShard;
 test('start shard closing test', function (t) {
+  process.exit = function(code){
+    t.ok('has been called');
+    t.equal(code, 0, 'exited properly');
+    console.log('Exited with code', code);
+  };
   closeShard = Kine(
     _.extend(kinesisOptions, {
       dynamoEndpoint: 'http://localhost:4567',
