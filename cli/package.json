@@ -1,0 +1,26 @@
+{
+  "name": "@mapbox/scuba",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "nyc tape test/*.test.js;",
+    "coverage": "nyc --reporter=html tape test/*.test.js && opener coverage/index.html"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.80.0",
+    "colors": "^1.1.2",
+    "graceful-fs": "^4.1.11",
+    "minimist": "^1.2.0",
+    "terminal-table": "0.0.12"
+  },
+  "bin": {
+    "scuba": "bin/index.js"
+  },
+  "devDependencies": {
+    "nyc": "^11.0.3",
+    "opener": "^1.4.3"
+  }
+}
