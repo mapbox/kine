@@ -4,7 +4,7 @@ var Kcl = require('./lib/kcl');
 /**
  * Creates a kine client. You must provide a stream name and the region where the
  * stream resides. You can also provide the name of the dynamodb table that kine will
- * use for tracking shard leases and checkpointing progess.
+ * use for tracking shard leases and checkpointing progress.
  *
  * If you do not explicitly pass credentials when creating a kine client, the
  * aws-sdk will look for credentials in a variety of places. See [the configuration guide](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html)
