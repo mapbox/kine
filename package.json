@@ -19,7 +19,6 @@
   "license": "MIT",
   "dependencies": {
     "@mapbox/dyno": "^1.4.1",
-    "@mapbox/kinesalite-utils": "0.0.3",
     "aws-sdk": "^2.7.3",
     "bignumber.js": "^2.4.0",
     "colors": "^1.1.2",
