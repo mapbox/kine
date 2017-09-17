@@ -37,6 +37,11 @@ let Sync = require('./lib/sync');
 
  * // start a sync instance to keep your stream state in sync with dynamo
  * // you probably want this code in a separate process/worker to keep it isolated from worker failures
+ * const syncConfig = {
+ *   verbose: true,
+ *   table: 'kine-kcl-test',
+ *   streamName: 'teststream'
+ * };
  * const sync = Sync(syncConfig, dynoClient, kinesisClient);
  * sync.init(function () { // init dynamo table
  *    sync.shards(); // start syncing in a loop
