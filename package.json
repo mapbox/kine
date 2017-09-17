@@ -4,10 +4,12 @@
   "description": "Simple client for kinesis",
   "main": "index.js",
   "scripts": {
-    "pretest": "eslint bin lib test index.js",
-    "test": "tape test/index.js",
+    "test": "nyc tape test/*test.js",
     "docs": "documentation index.js -f md > API.md",
     "coverage": "nyc --reporter=html tape test/*.test.js && open coverage/index.html"
+  },
+  "bin": {
+    "kine": "cli/index.js"
   },
   "keywords": [
     "kinesis",
@@ -20,9 +22,13 @@
     "@mapbox/kinesalite-utils": "0.0.3",
     "aws-sdk": "^2.7.3",
     "bignumber.js": "^2.4.0",
+    "colors": "^1.1.2",
     "d3-queue": "^3.0.7",
     "fastlog": "^1.1.0",
-    "lodash": "^3.7.0"
+    "graceful-fs": "^4.1.11",
+    "lodash": "^3.7.0",
+    "minimist": "^1.2.0",
+    "terminal-table": "0.0.12"
   },
   "devDependencies": {
     "coveralls": "^2.11.2",

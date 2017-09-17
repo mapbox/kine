@@ -3,7 +3,7 @@
 const Sync = require('../lib/sync.js');
 const test = require('tape');
 const Dyno = require('@mapbox/dyno');
-const util = require('./utils2');
+const util = require('./utils');
 const AWS = require('aws-sdk');
 
 const config = {
@@ -23,7 +23,7 @@ const kinesisClient = new AWS.Kinesis(kinesisOptions);
 
 test('init', util.init);
 
-let dynoClient = Dyno({
+const dynoClient = Dyno({
   endpoint: 'http://localhost:4568',
   accessKeyId: 'fake',
   secretAccessKey: 'fake',

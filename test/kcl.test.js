@@ -1,385 +1,279 @@
-var test = require('tape');
-var util = require('./util');
-var queue = require('d3-queue').queue;
-var Kine = require('../');
-var AWS = require('aws-sdk');
-var Dyno = require('@mapbox/dyno');
-var _ = require('lodash');
-var sinon = require('sinon');
-var events = require('events');
+'use strict';
 
-test('init', util.init);
+const Kcl = require('../lib/kcl.js');
+const Sync = require('../lib/sync.js');
+const test = require('tape');
+const Dyno = require('@mapbox/dyno');
+const queue = require('d3-queue').queue;
+const AWS = require('aws-sdk');
+const util = require('./utils');
 
-var kinesisOptions = {
+process.env.AWS_REGION = 'us-east-1';
+process.env.AWS_ACCESS_KEY_ID = 'does not matter';
+process.env.AWS_SECRET_ACCESS_KEY = 'does not matter';
+
+const kinesisOptions = {
   accessKeyId: 'fake',
   secretAccessKey: 'fake',
   region: 'us-east-1',
-  endpoint: 'http://localhost:5568',
-  table: 'kine-kcl-test'
+  endpoint: 'http://localhost:5568'
 };
 
-var kinesis = new AWS.Kinesis(kinesisOptions);
-
-var kine;
-
-var dyno = Dyno({
-  endpoint: 'http://localhost:4567',
+const kinesisClient = new AWS.Kinesis(kinesisOptions);
+const syncConfig = {
+  verbose: true,
+  table: 'kine-kcl-test',
+  streamName: 'teststream'
+};
+const dynoClient = Dyno({
+  endpoint: 'http://localhost:4568',
   accessKeyId: 'fake',
   secretAccessKey: 'fake',
   region: 'us-east-1',
-  table: 'kine-kcl-test'
+  table: syncConfig.table
 });
 
-test('createStream', function(t) {
-  kinesis.createStream({ShardCount:4, StreamName: 'teststream'}, function(err){
-    t.error(err);
-    t.end();
-  });
+test('init', util.init);
+const sync = Sync(syncConfig, dynoClient, kinesisClient);
+
+test('setup a sync instance', (t) => {
+  sync.init(function () { // init table
+    sync.shards(); // sync once
+    sync.events.on('shardSync', () => {
+      clearTimeout(sync.shardSyncTimeout);
+      t.end();
+    })
+  })
 });
 
-test('start kcl', function(t){
-  // mock cloudwatch
-  var send = sinon.spy(function() {
-    t.ok(this.options);
-    t.equal(this.options.Namespace, 'test');
-    t.equal(this.options.MetricData.length, 1);
-    t.equal(this.options.MetricData[0].MetricName, 'ShardIteratorAgeInMs');
-    t.ok(this.options.MetricData[0].Value);
-    t.equal(this.options.MetricData[0].Unit, 'Milliseconds');
-    t.equal(this.options.MetricData[0].Dimensions.length, 3);
-    t.equal(this.options.MetricData[0].Dimensions[0].Name, 'DeliveryStream');
-    t.ok(this.options.MetricData[0].Dimensions[0].Value);
-    t.equal(this.options.MetricData[0].Dimensions[1].Name, 'ShardId');
-    t.ok(this.options.MetricData[0].Dimensions[1].Value);
-    t.equal(this.options.MetricData[0].Dimensions[2].Name, 'Stack');
-    t.ok(this.options.MetricData[0].Dimensions[1].Value);
-  });
+test('shard availability', (t) => {
+  sync.getShardList(function (err, result) {
+    const config = {
+      verbose: true,
+      streamName: 'teststream'
+    };
+    const kcl = Kcl(config, dynoClient, kinesisClient);
 
-  var cloudwatch = {
-    putMetricData: function(options) {
-      var e = new events.EventEmitter();
-      e.options = options;
-      e.send = send;
-      return e;
+    function checkShardAvailability() {
+      return new Promise(function (resolve, reject) {
+        if (err) return reject(err);
+        kcl.availableShard(function (err, shard) {
+          t.equal(shard.status, 'available', 'shard is available');
+          resolve();
+        })
+      })
     }
+
+    function leaseAllShards() {
+      return new Promise(function (resolve, reject) {
+        const q = queue(10);
+        result.forEach(function (shard) {
+          q.defer(kcl.leaseShard, shard);
+        });
+        q.awaitAll(function (err) {
+          if (err) return reject(err);
+          resolve();
+        });
+      })
+    }
+
+    function checkAllLeased() {
+      return new Promise(function (resolve, reject) {
+        sync.getShardList(function (err, shards) {
+          if (err) return reject(err);
+          shards.forEach(function (shard) {
+            t.equal(shard.status, 'leased', `shard ${shard.id} is leased`)
+          });
+          resolve();
+        });
+      })
+    }
+
+    checkShardAvailability() // check that shards are available
+      .then(leaseAllShards) // lease them all
+      .then(checkAllLeased) // make sure none are free anymore
+      .then(() => util.resetState(sync, dynoClient))
+      .then(() => t.end())
+      .catch((err) => t.fail(err.stack || err));
+  })
+});
+
+test('get a shard iterator', (t) => {
+  const config = {
+    verbose: true,
+    table: 'kine-kcl-test',
+    streamName: 'teststream'
   };
 
-  kine = Kine(
-    _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
-      shardIteratorType: 'TRIM_HORIZON',
-      streamName: 'teststream',
-      cloudwatchNamespace: 'test',
-      cloudwatchStackname: 'test',
-      cloudwatch: cloudwatch,
-      _leaseTimeout: 5000,
-      init: function(done) {
-        console.log('init');
-        done();
-      },
-      processRecords: function(records, done) {
-        // check value of this.
-        console.log(records);
-        t.equal(this.hasOwnProperty('checkpointFunc'), true, 'has checkpointFunc function');
-        t.equal(records.length, 1, 'got record');
-        t.equal(records[0].PartitionKey, 'a', 'has paritionKey');
-        t.equal(records[0].Data.toString(), 'hello', 'has data');
-        done(null, true);
+  const kinesisClientTest = new AWS.Kinesis(kinesisOptions);
+  kinesisClientTest.getShardIterator = function (params) {
+    t.equal(params.StreamName, 'teststream', 'stream name is correct');
+    t.equal(params.ShardId, 'anId', 'shard id is correct');
+    t.equal(params.ShardIteratorType, 'LATEST', 'shard iterator type is correct');
+
+    kinesisClientTest.getShardIterator = function (params) {
+      t.equal(params.StreamName, 'teststream', 'stream name is correct');
+      t.equal(params.ShardId, 'anotherId', 'shard id is correct');
+      t.equal(params.ShardIteratorType, 'AFTER_SEQUENCE_NUMBER', 'shard iterator type is correct');
+      t.equal(params.StartingSequenceNumber, 'aSequenceNumber', 'extra param exists for sequence number');
+
+      kinesisClientTest.getShardIterator = function (params) {
+        t.equal(params.StreamName, 'teststream', 'stream name is correct');
+        t.equal(params.ShardId, 'oneLastId', 'shard id is correct');
+        t.equal(params.ShardIteratorType, 'AT_TIMESTAMP', 'shard iterator type is correct');
+        t.equal(params.Timestamp, 'aGreatTimestamp', 'extra param exists for timestamp');
         t.end();
-      }
-    })
-  );
+      };
 
-  kinesis.putRecord(
-    { Data: 'hello', PartitionKey: 'a', StreamName: 'teststream' },
-    function(err) {
-      t.error(err);
-    }
-  );
-});
+      kcl.updateConfig({shardIteratorType: 'AT_TIMESTAMP', timestamp: 'aGreatTimestamp'});
+      kcl.updateShardState({id: 'oneLastId', checkpoint: null});
+      kcl.getIterator();
+    };
 
-test('kcl - checkpointed', function(t){
+    kcl.updateShardState({id: 'anotherId', checkpoint: 'aSequenceNumber'});
+    kcl.getIterator();
 
-  // check if it got checkpointed in dynamo
-  function checkpointed() {
-    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
-      var shards = response.Items;
-      shards.forEach(function(s) {
-        t.equal(s.status, 'leased', 'leased');
-        t.equal(s.instance, kine.config.instanceId, 'this instance leased');
-        t.ok(s.hashKeyStart);
-        t.ok(s.hashKeyEnd);
-      });
-
-      var checkpointed = _(shards).filter(function(s){ return !!s.checkpoint;}).value();
-      t.equal(checkpointed.length, 1, 'one checkpointed');
-      t.end();
-    });
-  }
-  setTimeout(checkpointed, 7000);
-});
-
-test('stop kcl', function(t){
-  // stop the kcl, somehow
-  kine.stop();
-  setTimeout(t.end, 6000);
-});
-
-test('add more records', function(t) {
-  var q = queue();
-  for(var i=0; i< 3; i++){
-    q.defer(kinesis.putRecord.bind(kinesis), { Data: 'hello'+i, PartitionKey: 'a'+i, StreamName: 'teststream' });
-  }
-  q.awaitAll(function(err) {
-    t.error(err);
-    t.end();
-  });
-});
-
-var kine2;
-test('start 2nd kcl', function(t) {
-  kine2 = Kine(
-    _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
-      shardIteratorType: 'TRIM_HORIZON',
-      streamName: 'teststream',
-      table: kine.config.table,
-      cloudwatchNamespace: null,
-      cloudwatchStackname: null,
-      _leaseTimeout: 5000,
-      cloudwatch: null,
-      verbose: true,
-      minProcessTime: 5000,
-      init: function(done) {
-        console.log('init');
-        done();
-      },
-      processRecords: function(records, done) {
-        // check value of this.
-        console.log(records);
-        t.equal(records.length, 2, 'got record');
-        t.equal(records[0].PartitionKey, 'a0', 'has paritionKey');
-        t.equal(records[0].Data.toString(), 'hello0', 'has data');
-        done(null, true);
-        t.end();
-      }
-    })
-  );
-});
-
-test('stop kcl2', function(t){
-  // stop the kcl, somehow
-  kine2.stop();
-  setTimeout(t.end, 6000);
-});
-
-test('query instanceInfo', function (t) {
-  kine.instanceInfo('a', function (err, info) {
-    t.error(err, 'no error querying instance info');
-    t.equal(info.instance, kine.config.instanceId, 'finds the instance');
-    t.ok(info.hashKeyStart, 'info has hashKeyStart');
-    t.ok(info.hashKeyEnd, 'info has hashKeyEnd');
-    t.ok(info.shardId, 'info has shardId');
-    t.end();
-  });
-});
-
-var kineManualCheckpoint;
-test('start manual checkpoint kcl', function(t) {
-  kineManualCheckpoint = Kine(
-    _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
-      shardIteratorType: 'TRIM_HORIZON',
-      streamName: 'teststream',
-      table: kine.config.table,
-      _leaseTimeout: 10000,
-      cloudwatch: null,
-      verbose: false,
-      init: function(done) {
-        console.log('init manual checkpoint');
-        done(null, false);
-      },
-      processRecords: function(records, done) {
-        done(null, false);
-        this.checkpointFunc('012345', function(){
-          t.end();
-        });
-      }
-    })
-  );
-});
-
-test('kcl - has manually checkpointed', function(t){
-  function cp() {
-    dyno.query({KeyConditions:{type:{ComparisonOperator:'EQ',AttributeValueList: ['shard']}}}, function(err, response) {
-      t.equal(response.Items[2].checkpoint, '012345', 'sequenceNumber matches what we checkpointed manually');
-      t.end();
-    });
-  }
-  setTimeout(cp, 5000);
-});
-
-test('stop kcl', function(t){
-  kineManualCheckpoint.stop();
-  setTimeout(t.end, 6000);
-});
-
-var timerChecking;
-test('start getRecords kcl', function (t) {
-  var i = 0;
-  var startTime;
-  timerChecking = Kine(
-    _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
-      shardIteratorType: 'LATEST',
-      streamName: 'teststream',
-      table: kine.config.table,
-      cloudwatchNamespace: null,
-      cloudwatchStackname: null,
-      _leaseTimeout: 10000,
-      cloudwatch: null,
-      verbose: true,
-      maxShards: 1,
-      minProcessTime: 7000,
-      init: function (done) {
-        console.log('init');
-        // trigger the first getRecords call
-        kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {
-          startTime = +new Date();
-          done();
-        });
-      },
-      processRecords: function (records, done) {
-        var a = 0;
-        timerChecking.kinesis.getRecords = function () {
-          if (i === 0) {
-            var diff = +new Date() - startTime;
-            t.true(diff > 7000, 'Time between consecutive getRecords call > minProcessTime');
-          }
-
-          return {
-            on: function (action, cb) {
-              if (action === 'error') {
-                // these errors should return a timeout function with different intervals based on the error type
-                if (i === 0) {
-                  var resultError1 = cb({code: 'ServiceUnavailable'});
-                  t.true(resultError1._idleTimeout >= 500 && resultError1._idleTimeout <= 6000, 'ServiceUnavailable is between 500ms and 6000ms for retry 1');
-                }
-                if (i === 1) {
-                  var resultError2 = cb({code: 'SyntaxError'});
-                  t.equal(resultError2._idleTimeout, 500, 'SyntaxError is 0.5 second wait for retry');
-                }
-                if (i === 2) {
-                  var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
-                  t.true(resultError3._idleTimeout >= 500 && resultError3._idleTimeout <= 9000, 'ProvisionedThroughputExceededException is between 3500ms and 9000ms for retry 3');
-                }
-                i++;
-              }
-              if (action === 'success') {
-                if (i === 1) {
-                  var resultError4 = cb({
-                    data: {
-                      Records: [],
-                      NextShardIterator: 'next1'
-                    }
-                  });
-                  t.true(resultError4._idleTimeout, 2500, 'Norecords wait is 2500ms');
-                }
-              }
-            },
-            abort: function () {
-              a++;
-              if (a === 5) t.end();
-            },
-            send: function () {
-            }
-          };
-        };
-        done(null, false);
-      }
-    })
-  );
-});
-
-test('stop error checking kcl', function (t) {
-  timerChecking.stop();
-  setTimeout(t.end, 10000);
-});
-
-var closeShard;
-test('start shard closing test', function (t) {
-  process.exit = function(code){
-    t.ok('has been called');
-    t.equal(code, 0, 'exited properly');
-    console.log('Exited with code', code);
   };
-  closeShard = Kine(
-    _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
-      shardIteratorType: 'LATEST',
-      streamName: 'teststream',
-      table: kine.config.table,
-      cloudwatchNamespace: null,
-      cloudwatchStackname: null,
-      _leaseTimeout: 10000,
-      cloudwatch: null,
-      verbose: true,
-      maxShards: 1,
-      init: function (done) {
-        console.log('init');
-        // trigger the first getRecords call
-        kinesis.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function () {
-          done();
-        });
-      },
-      onShardClosed: function(done){
-        t.equal(this.id, 'shardId-000000000000', 'shard closed is the first one');
-        t.equal(this.status, 'leased', 'status is not closed yet');
-        done();
-      },
-      processRecords: function (records, done) {
-        closeShard.kinesis.getRecords = function () {
-          return {
-            on: function (action, cb) {
-              if (action === 'success') {
-                // valid Records, but no NextShardIterator -> this should close the shard
-                cb({
-                  data: {
-                    Records: []
-                  }
-                });
-                setTimeout(function () {
-                  dyno.query({
-                    KeyConditions: {
-                      type: {
-                        ComparisonOperator: 'EQ',
-                        AttributeValueList: ['shard']
-                      }
-                    }
-                  }, function (err, response) {
-                    var shards = response.Items;
-                    t.equal(shards.length, 4, 'shard count is the same');
-                    t.equal(shards[0].status, 'complete', 'shard marked as complete');
-                    t.end();
-                  });
-                }, 1000);
-              }
-            },
-            abort: function () {
-            },
-            send: function () {
-            }
-          };
-        };
-        done(null, false);
-      }
-    })
-  );
+  const kcl = Kcl(config, dynoClient, kinesisClientTest);
+  kcl.updateShardState({id: 'anId'});
+  kcl.getIterator();
 });
 
-test('stop closed shard kcl', function (t) {
-  closeShard.stop();
-  setTimeout(t.end, 6000);
+test('init, lease a shard', (t) => {
+  t.plan(4);
+  const config = {
+    verbose: true,
+    streamName: 'teststream',
+    init: function (cb) {
+      console.log('Init my test function');
+      cb(null, null);
+    },
+    processRecords: function (records, cb) {
+      console.log(`Processing ${records.length} records`);
+      kcl.stop = true;
+      clearTimeout(kcl.heartbeatTimeoutId);
+      t.ok('processed records');
+      cb(null, null);
+    }
+  };
+  const kcl = Kcl(config, dynoClient, kinesisClient);
+  kcl.init(function (err, result) {
+    t.equal(result.status, 'leased', 'shard is leased');
+    t.true(result.expiresAt > +new Date(), 'expiry is in the future');
+    setTimeout(function () {
+      kinesisClient.putRecord({Data: 'hello', PartitionKey: 'a', StreamName: 'teststream'}, function (err) {
+          t.error(err);
+        }
+      );
+    }, 2000);
+  });
+});
+
+test('checkpoint exposed function', (t) => {
+  const config = {
+    verbose: true,
+    streamName: 'teststream',
+    init: function (cb) {
+      console.log('Init my test function');
+      cb(null, null);
+    }
+  };
+  const kcl = Kcl(config, dynoClient, kinesisClient);
+  kcl.init(function () {
+    kcl.checkpoint('123', function () {
+      sync.getShardList(function (err, shards) {
+        t.equal(shards[1].checkpoint, '123', 'checkpoint is the same');
+        kcl.stop = true;
+        clearTimeout(kcl.heartbeatTimeoutId);
+        t.end();
+      })
+    })
+  });
+});
+
+test('backoff wait function, minimum and maximum', (t) => {
+  const kcl = Kcl({}, dynoClient, kinesisClient);
+  let result = 0;
+  for (let i = 0; i < 100; i++) {
+    let timer = kcl.getBackoffWait(1);
+    if (timer < 1500) result++;
+  }
+  t.equal(result, 0, 'backoff time is never smaller than 1.5 seconds');
+  for (let i = 0; i < 100; i++) {
+    let timer = kcl.getBackoffWait(9);
+    if (timer > 14000) result++;
+  }
+  t.equal(result, 0, 'backoff time is never bigger than 14 seconds');
+  t.end();
+});
+
+test('heartbeat test', (t) => {
+  const config = {
+    verbose: true,
+    streamName: 'teststream',
+    abortKinesisRequestTimeout: 1000,
+    init: function (cb) {
+      console.log('Init my test function');
+      cb(null, null);
+    }
+  };
+  const kcl = Kcl(config, dynoClient, kinesisClient);
+  util.resetState(sync, dynoClient).then(function () {
+    kcl.stop = true; // stop immediately
+    kcl.init(function () { // need to init to get a shard id
+      setTimeout(function () { // let things settle, we only want the heartbeat running
+        kcl.stop = false;
+        kcl.heartbeat(function (err, shardStatus) {
+          let diff = +new Date() - 3000; // should of been updated in the last few seconds
+          t.true(shardStatus.updated >= diff, 'was updated in the last few seconds');
+          clearTimeout(kcl.heartbeatTimeoutId);
+
+          // let's make sure the extending works properly. mock db.updateLease
+          kcl.db.updateLease = function (shardId, cb) {
+            console.log('calling fake leaseShard function');
+            cb(null, {
+              foo: 'bar'
+            });
+          };
+          kcl.heartbeat(function (err, shardStatus) {
+            t.true(shardStatus.foo, 'has foo property');
+            t.equal(shardStatus.foo, 'bar', 'foo bar\'ed properly');
+            clearTimeout(kcl.heartbeatTimeoutId);
+            t.end();
+          });
+        })
+      }, 1000);
+    });
+  }).catch(t.fail);
+});
+
+test('make sure heartbeat throws if we have a zombie (max processing time reached)', (t) => {
+  t.plan(1);
+  const config = {
+    verbose: true,
+    streamName: 'teststream',
+    abortKinesisRequestTimeout: 1000,
+    init: function (cb) {
+      console.log('Init my test function');
+      cb(null, null);
+    }
+  };
+  const kcl = Kcl(config, dynoClient, kinesisClient);
+  util.resetState(sync, dynoClient).then(function () {
+    kcl.stop = true; // stop immediately
+    kcl.init(function () { // need to init to get a shard id
+      setTimeout(function () { // let things settle, we only want the heartbeat running
+        kcl.stop = false;
+        kcl.shard.updated = +new Date() - (1000 * 60 * 5) - 1000; // more than 5 mins back
+        t.throws(function () {
+          kcl.heartbeat(function (err, shardStatus) {
+            clearTimeout(kcl.heartbeatTimeoutId);
+            t.ok('has thrown');
+          })
+        });
+      }, 1000);
+    });
+  }).catch(t.fail);
 });
 
 test('teardown', util.teardown);
