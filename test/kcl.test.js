@@ -273,17 +273,21 @@ test('start getRecords kcl', function (t) {
                   var resultError3 = cb({code: 'ProvisionedThroughputExceededException'});
                   t.true(resultError3._idleTimeout >= 500 && resultError3._idleTimeout <= 9000, 'ProvisionedThroughputExceededException is between 3500ms and 9000ms for retry 3');
                 }
+                if (i === 3) {
+                  var resultError4 = cb({code: 'KMSThrottlingException'});
+                  t.true(resultError4._idleTimeout >= 500 && resultError4._idleTimeout <= 9000, 'KMSThrottlingException is between 3500ms and 9000ms for retry 3');
+                }
                 i++;
               }
               if (action === 'success') {
                 if (i === 1) {
-                  var resultError4 = cb({
+                  var resultError5 = cb({
                     data: {
                       Records: [],
                       NextShardIterator: 'next1'
                     }
                   });
-                  t.true(resultError4._idleTimeout, 2500, 'Norecords wait is 2500ms');
+                  t.true(resultError5._idleTimeout, 2500, 'Norecords wait is 2500ms');
                 }
               }
             },
