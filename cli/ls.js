@@ -5,8 +5,8 @@
  */
 
 const aws = require('aws-sdk');
-const kinesis = new aws.Kinesis();
-const cloudwatch = new aws.CloudWatch();
+const kinesis = new aws.Kinesis({region: process.env.AWS_DEFAULT_REGION || 'us-east-1'});
+const cloudwatch = new aws.CloudWatch({region: process.env.AWS_DEFAULT_REGION || 'us-east-1'});
 const table = require('terminal-table');
 const colors = require('colors');
 

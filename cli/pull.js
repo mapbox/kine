@@ -10,7 +10,7 @@
  */
 
 const aws = require('aws-sdk');
-const kinesis = new aws.Kinesis();
+const kinesis = new aws.Kinesis({region: process.env.AWS_DEFAULT_REGION || 'us-east-1'});
 const limit = 10000;
 const fs = require('graceful-fs');
 
