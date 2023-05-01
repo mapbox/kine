@@ -8,6 +8,8 @@ var _ = require('lodash');
 var sinon = require('sinon');
 var events = require('events');
 
+const DYNAMO_ENDPOINT = 'http://localhost:4567';
+
 test('init', util.init);
 
 var kinesisOptions = {
@@ -23,7 +25,7 @@ var kinesis = new AWS.Kinesis(kinesisOptions);
 var kine;
 
 var dyno = Dyno({
-  endpoint: 'http://localhost:4567',
+  endpoint: DYNAMO_ENDPOINT,
   accessKeyId: 'fake',
   secretAccessKey: 'fake',
   region: 'us-east-1',
@@ -66,7 +68,7 @@ test('start kcl', function(t){
 
   kine = Kine(
     _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
+      dynamoEndpoint: DYNAMO_ENDPOINT,
       shardIteratorType: 'TRIM_HORIZON',
       streamName: 'teststream',
       cloudwatchNamespace: 'test',
@@ -140,7 +142,7 @@ var kine2;
 test('start 2nd kcl', function(t) {
   kine2 = Kine(
     _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
+      dynamoEndpoint: DYNAMO_ENDPOINT,
       shardIteratorType: 'TRIM_HORIZON',
       streamName: 'teststream',
       table: kine.config.table,
@@ -188,7 +190,7 @@ var kineManualCheckpoint;
 test('start manual checkpoint kcl', function(t) {
   kineManualCheckpoint = Kine(
     _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
+      dynamoEndpoint: DYNAMO_ENDPOINT,
       shardIteratorType: 'TRIM_HORIZON',
       streamName: 'teststream',
       table: kine.config.table,
@@ -230,7 +232,7 @@ test('start getRecords kcl', function (t) {
   var startTime;
   timerChecking = Kine(
     _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
+      dynamoEndpoint: DYNAMO_ENDPOINT,
       shardIteratorType: 'LATEST',
       streamName: 'teststream',
       table: kine.config.table,
@@ -315,7 +317,7 @@ test('start shard closing test', function (t) {
   };
   closeShard = Kine(
     _.extend(kinesisOptions, {
-      dynamoEndpoint: 'http://localhost:4567',
+      dynamoEndpoint: DYNAMO_ENDPOINT,
       shardIteratorType: 'LATEST',
       streamName: 'teststream',
       table: kine.config.table,
