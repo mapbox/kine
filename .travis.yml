@@ -1,6 +1,6 @@
 language: node_js
 node_js:
-- '4.4.3'
+- '16.19.0'
 sudo: false
 cache:
   directories:
