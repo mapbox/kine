@@ -1,6 +1,6 @@
 {
   "name": "@mapbox/kine",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "description": "Simple client for kinesis",
   "main": "index.js",
   "scripts": {
@@ -32,5 +32,8 @@
     "kinesalite": "^1.4.1",
     "tape": "^4.0.0",
     "sinon": "~1.17.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
