@@ -11,6 +11,26 @@ Features:
   - checkpointing in dynamo
 
 
+#### Publishing a release
+
+Releases are published to npm via GitHub Actions using OIDC trusted publishing — no npm tokens required.
+
+**One-time setup** (already done for this repo — see [PSA doc](https://mapbox.atlassian.net/wiki/spaces/CLOUDPLAT/pages/2894397444)):
+1. The `npm-release` GitHub Environment must exist in repo settings, restricted to `master` with required reviewers.
+2. The `.github/workflows/npm-release.yml` workflow must be present.
+
+**Cutting a release:**
+1. Bump the version in `package.json` (follow semver) and update `CHANGELOG.md` if applicable.
+2. Open a PR, get it reviewed, and merge to `master`.
+3. Go to **Actions → NPM release → Run workflow**.
+4. Approve the `npm-release` environment gate when prompted.
+
+The workflow publishes to npm and creates a GitHub release automatically.
+
+Questions? Reach out in **#ask-platform** on Slack.
+
+---
+
 #### How to use
 
 See [API.md](API.md) for complete reference.
