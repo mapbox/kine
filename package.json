@@ -17,7 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "@mapbox/dyno": "^1.6.0",
-    "@mapbox/fastlog": "^1.3.3",
+    "@mapbox/fastlog": "^2.0.2",
     "aws-sdk": "^2.7.3",
     "bignumber.js": "^2.4.0",
     "d3-queue": "^3.0.7",
